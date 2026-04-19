@@ -1,0 +1,12 @@
+FROM node:20-alpine
+
+WORKDIR /app
+
+# Install dependencies layer (cache-friendly)
+COPY package*.json ./
+RUN npm install
+
+# Source di-mount via volume (tidak di-copy)
+EXPOSE 5173
+
+CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"]

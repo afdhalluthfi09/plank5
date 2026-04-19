@@ -1,0 +1,53 @@
+services:
+  # ── Development server (Vite HMR) ──────────────────────────────────────────
+  app:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.dev
+    container_name: plank5_dev
+    ports:
+      - "5173:5173"        # Vite dev server
+    volumes:
+      - ./src:/app/src     # Hot reload source
+      - ./public:/app/public
+      - ./index.html:/app/index.html
+      - ./vite.config.js:/app/vite.config.js
+      - /app/node_modules  # Isolate node_modules di container
+    environment:
+      - VITE_FIREBASE_API_KEY=${VITE_FIREBASE_API_KEY}
+      - VITE_FIREBASE_AUTH_DOMAIN=${VITE_FIREBASE_AUTH_DOMAIN}
+      - VITE_FIREBASE_PROJECT_ID=${VITE_FIREBASE_PROJECT_ID}
+      - VITE_FIREBASE_STORAGE_BUCKET=${VITE_FIREBASE_STORAGE_BUCKET}
+      - VITE_FIREBASE_MESSAGING_SENDER_ID=${VITE_FIREBASE_MESSAGING_SENDER_ID}
+      - VITE_FIREBASE_APP_ID=${VITE_FIREBASE_APP_ID}
+      - VITE_VAPID_KEY=${VITE_VAPID_KEY}
+    networks:
+      - plank5_net
+
+  # ── Production build + Nginx ───────────────────────────────────────────────
+  nginx:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.prod
+    container_name: plank5_prod
+    ports:
+      - "80:80"
+    profiles: ["prod"]     # Hanya aktif dengan: docker compose --profile prod up
+    networks:
+      - plank5_net
+
+  # ── (Phase 2) Backend placeholder ─────────────────────────────────────────
+  # api:
+  #   image: php:8.2-fpm   # Laravel
+  #   # ATAU
+  #   # image: node:20     # NestJS
+  #   container_name: plank5_api
+  #   ports:
+  #     - "8000:8000"
+  #   profiles: ["with-api"]
+  #   networks:
+  #     - plank5_net
+
+networks:
+  plank5_net:
+    driver: bridge
