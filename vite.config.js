@@ -4,6 +4,10 @@ import { VitePWA } from 'vite-plugin-pwa'
 import { fileURLToPath, URL } from 'node:url'
 
 export default defineConfig({
+  // GitHub Pages deploy di: https://USERNAME.github.io/plank5/
+  // Ubah '/plank5/' sesuai nama repo kamu
+  base: process.env.NODE_ENV === 'production' ? '/plank5/' : '/',
+
   plugins: [
     vue(),
 
