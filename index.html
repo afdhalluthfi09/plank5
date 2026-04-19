@@ -2,26 +2,29 @@
 <html lang="id">
   <head>
     <meta charset="UTF-8" />
-    <!-- PWA: viewport mobile optimal, no zoom -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 
-    <!-- PWA Meta Tags -->
+    <!-- GitHub Pages SPA routing fix -->
+    <script>
+      (function() {
+        const p = new URLSearchParams(window.location.search).get('p')
+        if (p) {
+          // Restore path yang disimpan dari 404.html
+          window.history.replaceState(
+            null, '',
+            window.location.pathname + decodeURIComponent(p)
+          )
+        }
+      })()
+    </script>
+
     <meta name="theme-color" content="#0a1814" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="Plank5" />
-
-    <!-- Apple Touch Icon -->
-    <link rel="apple-touch-icon" href="/icons/icon-192.png" />
+    <link rel="apple-touch-icon" href="/plank5/icons/icon-192.png" />
 
     <title>Plank5 — Kesehatan Harian</title>
-    <script>
-      // Handle redirect dari 404.html
-      const redirect = new URLSearchParams(window.location.search).get('redirect');
-      if (redirect) {
-        window.history.replaceState(null, '', redirect);
-      }
-    </script>
   </head>
   <body>
     <div id="app"></div>
