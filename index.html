@@ -15,6 +15,13 @@
     <link rel="apple-touch-icon" href="/icons/icon-192.png" />
 
     <title>Plank5 — Kesehatan Harian</title>
+    <script>
+      // Handle redirect dari 404.html
+      const redirect = new URLSearchParams(window.location.search).get('redirect');
+      if (redirect) {
+        window.history.replaceState(null, '', redirect);
+      }
+    </script>
   </head>
   <body>
     <div id="app"></div>
