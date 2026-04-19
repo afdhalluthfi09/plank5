@@ -25,8 +25,8 @@ export default defineConfig({
         background_color: '#0a1814',
         display: 'standalone',          // Hilangkan browser chrome, tampil seperti native app
         orientation: 'portrait',
-        start_url: '/',
-        scope: '/',
+        start_url: '/plank5/',
+        scope: '/plank5/',
         icons: [
           { src: 'icons/icon-192.png', sizes: '192x192', type: 'image/png' },
           { src: 'icons/icon-512.png', sizes: '512x512', type: 'image/png' },
