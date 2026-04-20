@@ -1,8 +1,7 @@
-// src/stores/health.js
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import {
-  getDailyLog, getMonthlyLogs,
+  getDailyLog, getMonthlyLogs, getProfile,
   savePlankSession, saveWeight, markPrayer,
   getTargetDuration, calcCalories, calcConsistencyScore
 } from '@/services/healthService.js'
@@ -11,19 +10,27 @@ import { schedulePrayerReminders } from '@/services/notificationService.js'
 
 export const useHealthStore = defineStore('health', () => {
 
-  // ── State ─────────────────────────────────────────────────────────────────
-  const todayLog      = ref(null)
-  const monthlyLogs   = ref([])
-  const prayerTimes   = ref({})
-  const weightKg      = ref(80)
-  const isLoading     = ref(false)
-  const error         = ref(null)
+  const todayLog     = ref(null)
+  const monthlyLogs  = ref([])
+  const prayerTimes  = ref({})
+  const weightKg     = ref(80)
+  const isLoading    = ref(false)
+  const error        = ref(null)
+
+  // ── Custom timer duration ────────────────────────────────────────────────
+  // null = pakai progressive overload otomatis
+  // number = durasi custom dari settings user
+  const customDuration = ref(null)
 
   const PRAYERS = ['subuh', 'dzuhur', 'ashar', 'maghrib', 'isya']
 
   // ── Computed ──────────────────────────────────────────────────────────────
+  const autoDuration = computed(() => getTargetDuration())
 
-  const targetDuration = computed(() => getTargetDuration())
+  // Durasi aktual yang dipakai: custom jika diset, otherwise auto
+  const targetDuration = computed(() =>
+    customDuration.value !== null ? customDuration.value : autoDuration.value
+  )
 
   const todayPrayers = computed(() => todayLog.value?.prayers || {})
 
@@ -44,12 +51,9 @@ export const useHealthStore = defineStore('health', () => {
       }, 0)
   )
 
-  const consistencyScore = computed(() =>
-    calcConsistencyScore(monthlyLogs.value)
-  )
+  const consistencyScore = computed(() => calcConsistencyScore(monthlyLogs.value))
 
   const streak = computed(() => {
-    // Hitung hari berturut-turut dengan minimal 1 plank
     let count = 0
     const sorted = [...monthlyLogs.value].reverse()
     for (const log of sorted) {
@@ -62,10 +66,9 @@ export const useHealthStore = defineStore('health', () => {
   })
 
   // ── Actions ───────────────────────────────────────────────────────────────
-
   async function loadTodayData() {
     isLoading.value = true
-    error.value = null
+    error.value     = null
     try {
       todayLog.value = await getDailyLog()
       if (todayLog.value?.weight_kg) {
@@ -86,35 +89,44 @@ export const useHealthStore = defineStore('health', () => {
   async function loadPrayerTimes() {
     try {
       const { lat, lng } = await getUserLocation()
-      prayerTimes.value = await getPrayerTimes(lat, lng)
+      prayerTimes.value  = await getPrayerTimes(lat, lng)
       schedulePrayerReminders(prayerTimes.value)
     } catch {
-      // Geolokasi ditolak atau offline — pakai fallback (sudah di-handle di service)
-      const { getPrayerTimes: gpt } = await import('@/services/prayerTimesService.js')
-      prayerTimes.value = await gpt(null, null).catch(() => ({}))
+      prayerTimes.value = await getPrayerTimes(null, null).catch(() => ({}))
     }
+  }
+
+  async function loadProfile() {
+    try {
+      const profile = await getProfile()
+      if (profile?.custom_duration !== undefined) {
+        customDuration.value = profile.custom_duration
+      }
+      if (profile?.weight_start) {
+        weightKg.value = profile.weight_start
+      }
+    } catch (_) {}
   }
 
   async function completePlank(prayerId) {
     const duration = targetDuration.value
     await savePlankSession(prayerId, duration)
-    // Update local state langsung (optimistic update — tidak perlu reload)
-    if (!todayLog.value) todayLog.value = { prayers: {} }
-    if (!todayLog.value.prayers) todayLog.value.prayers = {}
+    if (!todayLog.value)           todayLog.value = { prayers: {} }
+    if (!todayLog.value.prayers)   todayLog.value.prayers = {}
     todayLog.value.prayers[prayerId] = {
       ...todayLog.value.prayers[prayerId],
-      plank_done: true,
-      duration_seconds: duration
+      plank_done:       true,
+      duration_seconds: duration,
     }
   }
 
   async function togglePrayer(prayerId) {
     await markPrayer(prayerId)
-    if (!todayLog.value) todayLog.value = { prayers: {} }
-    if (!todayLog.value.prayers) todayLog.value.prayers = {}
+    if (!todayLog.value)          todayLog.value = { prayers: {} }
+    if (!todayLog.value.prayers)  todayLog.value.prayers = {}
     todayLog.value.prayers[prayerId] = {
       ...todayLog.value.prayers[prayerId],
-      prayed: true
+      prayed: true,
     }
   }
 
@@ -123,16 +135,18 @@ export const useHealthStore = defineStore('health', () => {
     await saveWeight(kg)
   }
 
+  function setCustomDuration(val) {
+    customDuration.value = val   // null = kembali ke auto
+  }
+
   return {
-    // State
     todayLog, monthlyLogs, prayerTimes,
     weightKg, isLoading, error,
-    // Computed
-    targetDuration, todayPrayers, plankDoneCount,
-    prayerDoneCount, todayCalories, consistencyScore, streak,
-    // Actions
-    loadTodayData, loadMonthlyData, loadPrayerTimes,
-    completePlank, togglePrayer, updateWeight,
-    PRAYERS
+    customDuration, autoDuration, targetDuration,
+    todayPrayers, plankDoneCount, prayerDoneCount,
+    todayCalories, consistencyScore, streak,
+    PRAYERS,
+    loadTodayData, loadMonthlyData, loadPrayerTimes, loadProfile,
+    completePlank, togglePrayer, updateWeight, setCustomDuration,
   }
 })

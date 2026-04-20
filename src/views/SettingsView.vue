@@ -69,6 +69,76 @@
       </div>
     </div>
 
+
+    <!-- Custom Timer -->
+    <div class="card" style="margin-bottom:12px;">
+      <p class="label-upper" style="margin-bottom:14px;">Timer Plank</p>
+
+      <!-- Mode toggle -->
+      <div class="setting-row">
+        <div>
+          <span class="text-secondary" style="font-size:13px;">Mode</span>
+          <p class="text-muted" style="font-size:10px; margin-top:2px;">
+            Auto: naik +1s setiap 3 hari (sekarang {{ healthStore.autoDuration }}s)
+          </p>
+        </div>
+        <div class="mode-toggle">
+          <button
+            class="mode-btn" :class="{ active: !useCustom }"
+            @click="setAutoMode">Auto</button>
+          <button
+            class="mode-btn" :class="{ active: useCustom }"
+            @click="setCustomMode">Custom</button>
+        </div>
+      </div>
+
+      <!-- Custom duration input — hanya tampil kalau mode Custom -->
+      <Transition name="expand">
+        <div v-if="useCustom" class="custom-timer-wrap">
+          <p class="text-secondary" style="font-size:12px; margin-bottom:12px;">
+            Pilih durasi plank kamu:
+          </p>
+
+          <!-- Quick presets -->
+          <div class="presets">
+            <button
+              v-for="sec in presets" :key="sec"
+              class="preset-btn"
+              :class="{ 'preset-active': form.custom_duration === sec }"
+              @click="form.custom_duration = sec"
+            >
+              {{ sec }}s
+            </button>
+          </div>
+
+          <!-- Manual input -->
+          <div class="custom-input-row">
+            <span class="text-secondary" style="font-size:12px;">Atau ketik manual:</span>
+            <div style="display:flex; align-items:center; gap:6px;">
+              <input
+                v-model.number="form.custom_duration"
+                type="number" min="5" max="300"
+                class="setting-input mono text-gold"
+                style="width:70px"
+              />
+              <span class="text-muted" style="font-size:12px;">detik</span>
+            </div>
+          </div>
+
+          <!-- Preview -->
+          <div v-if="form.custom_duration" class="timer-preview">
+            <span class="text-muted" style="font-size:11px;">Preview:</span>
+            <span class="mono text-gold" style="font-size:22px; font-weight:700;">
+              {{ form.custom_duration }}s
+            </span>
+            <span class="text-muted" style="font-size:10px;">
+              ≈ {{ previewCalories }} kcal/sesi
+            </span>
+          </div>
+        </div>
+      </Transition>
+    </div>
+
     <!-- Notification -->
     <div class="card" style="margin-bottom:12px;">
       <p class="label-upper" style="margin-bottom:14px;">Notifikasi</p>
@@ -108,15 +178,34 @@ const authStore   = useAuthStore()
 const healthStore = useHealthStore()
 const router      = useRouter()
 
-const isSaving    = ref(false)
-const saveSuccess = ref(false)
+const isSaving     = ref(false)
+const saveSuccess  = ref(false)
 const notifEnabled = ref(false)
+const useCustom    = ref(healthStore.customDuration !== null)
+
+const presets = [10, 15, 20, 30, 45, 60, 90, 120]
 
 const form = ref({
-  weight_start:  null,
-  weight_target: null,
-  height_cm:     null,
+  weight_start:    null,
+  weight_target:   null,
+  height_cm:       null,
+  custom_duration: healthStore.customDuration || 30,
 })
+
+const previewCalories = computed(() => {
+  if (!form.value.custom_duration) return '0.00'
+  return (((3.5 * healthStore.weightKg * 3.5) / 200) * (form.value.custom_duration / 60)).toFixed(2)
+})
+
+function setAutoMode() {
+  useCustom.value = false
+  healthStore.setCustomDuration(null)
+}
+
+function setCustomMode() {
+  useCustom.value = true
+  healthStore.setCustomDuration(form.value.custom_duration || 30)
+}
 
 const fields = [
   { key: 'weight_start',  label: 'Berat Awal',    unit: 'kg', step: 0.1, placeholder: '80', hint: 'Berat saat mulai program' },
@@ -167,7 +256,17 @@ async function saveData() {
   isSaving.value    = true
   saveSuccess.value = false
   try {
-    await saveProfile(form.value)
+    const dataToSave = {
+      ...form.value,
+      custom_duration: useCustom.value ? form.value.custom_duration : null,
+    }
+    await saveProfile(dataToSave)
+    // Update store langsung
+    if (useCustom.value) {
+      healthStore.setCustomDuration(form.value.custom_duration)
+    } else {
+      healthStore.setCustomDuration(null)
+    }
     saveSuccess.value = true
     setTimeout(() => { saveSuccess.value = false }, 2500)
   } catch (e) {
@@ -308,5 +407,96 @@ async function handleLogout() {
 .btn-logout:active {
   background: rgba(255,107,107,0.08);
   color: var(--red);
+}
+
+.mode-toggle {
+  display: flex;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 3px;
+  gap: 2px;
+}
+
+.mode-btn {
+  padding: 5px 12px;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-family: var(--font-body);
+}
+.mode-btn.active {
+  background: rgba(240,200,96,0.15);
+  color: var(--gold);
+}
+
+.custom-timer-wrap {
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+  margin-top: 4px;
+}
+
+.presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.preset-btn {
+  padding: 7px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: var(--font-mono);
+  transition: all 0.15s;
+  -webkit-tap-highlight-color: transparent;
+}
+.preset-btn:active { transform: scale(0.95); }
+.preset-active {
+  background: rgba(240,200,96,0.15);
+  border-color: rgba(240,200,96,0.4);
+  color: var(--gold);
+}
+
+.custom-input-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.timer-preview {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  background: rgba(240,200,96,0.06);
+  border: 1px solid rgba(240,200,96,0.15);
+  border-radius: 10px;
+}
+
+/* Expand transition */
+.expand-enter-active, .expand-leave-active {
+  transition: all 0.25s ease;
+  overflow: hidden;
+}
+.expand-enter-from, .expand-leave-to {
+  opacity: 0;
+  max-height: 0;
+  padding-top: 0;
+}
+.expand-enter-to, .expand-leave-from {
+  opacity: 1;
+  max-height: 500px;
 }
 </style>
