@@ -1,5 +1,5 @@
 <template>
-  <!-- Loading awal saat cek sesi Firebase -->
+  <!-- Splash loading -->
   <div v-if="authStore.isLoading" class="splash">
     <div class="splash-logo">
       <svg width="60" height="60" viewBox="0 0 72 72">
@@ -15,7 +15,6 @@
     <div class="splash-spinner" />
   </div>
 
-  <!-- App -->
   <template v-else>
     <div class="bg-ambient" />
 
@@ -25,24 +24,24 @@
       </Transition>
     </RouterView>
 
-    <!-- Bottom Nav — hanya tampil kalau sudah login -->
+    <!-- Bottom Nav -->
     <nav v-if="authStore.isLoggedIn" class="bottom-nav">
       <RouterLink
-        v-for="item in navItems"
-        :key="item.to"
-        :to="item.to"
-        custom
-        v-slot="{ navigate, isActive }"
+        v-for="item in navItems" :key="item.to"
+        :to="item.to" custom v-slot="{ navigate, isActive }"
       >
         <button class="bottom-nav-item" @click="navigate">
           <span class="bottom-nav-icon">{{ item.icon }}</span>
-          <span
-            class="bottom-nav-label"
-            :style="{ color: isActive ? 'var(--gold)' : 'var(--text-muted)' }"
-          >{{ item.label }}</span>
+          <span class="bottom-nav-label"
+            :style="{ color: isActive ? 'var(--gold)' : 'var(--text-muted)' }">
+            {{ item.label }}
+          </span>
         </button>
       </RouterLink>
     </nav>
+
+    <!-- Update banner — muncul otomatis saat ada versi baru -->
+    <UpdateBanner />
   </template>
 </template>
 
@@ -52,6 +51,7 @@ import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth.js'
 import { useHealthStore } from '@/stores/health.js'
 import { requestNotificationPermission } from '@/services/notificationService.js'
+import UpdateBanner from '@/components/shared/UpdateBanner.vue'
 
 const authStore   = useAuthStore()
 const healthStore = useHealthStore()
@@ -64,10 +64,8 @@ const navItems = [
   { to: '/settings', icon: '⚙️', label: 'Pengaturan' },
 ]
 
-// Init auth — cek sesi yang tersimpan
 authStore.init().then(async (user) => {
   if (user) {
-    // Sudah login — load data
     await Promise.all([
       healthStore.loadTodayData(),
       healthStore.loadMonthlyData(),
@@ -75,27 +73,20 @@ authStore.init().then(async (user) => {
     ])
     await requestNotificationPermission()
   } else {
-    // Belum login — redirect ke auth
     router.push('/auth')
   }
 })
 
-// Watch auth state changes
-watch(() => authStore.isLoggedIn, async (loggedIn) => {
-  if (!loggedIn) {
-    router.push('/auth')
-  }
+watch(() => authStore.isLoggedIn, (loggedIn) => {
+  if (!loggedIn) router.push('/auth')
 })
 </script>
 
 <style>
-.page-enter-active, .page-leave-active {
-  transition: all 0.2s ease;
-}
+.page-enter-active, .page-leave-active { transition: all 0.2s ease; }
 .page-enter-from { opacity: 0; transform: translateX(10px); }
 .page-leave-to   { opacity: 0; transform: translateX(-10px); }
 
-/* Splash screen */
 .splash {
   min-height: 100dvh;
   display: flex;
@@ -105,9 +96,6 @@ watch(() => authStore.isLoggedIn, async (loggedIn) => {
   gap: 24px;
   background: var(--bg);
 }
-
-.splash-logo { opacity: 0.8; }
-
 .splash-spinner {
   width: 24px; height: 24px;
   border: 2px solid rgba(240,200,96,0.15);
