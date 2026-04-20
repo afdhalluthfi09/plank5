@@ -1,10 +1,6 @@
-// src/services/firebase.js
-// ── Satu-satunya file yang tahu tentang Firebase SDK ─────────────────────────
-// Saat migrasi ke Laravel/NestJS nanti, hanya file ini & healthService.js yang diganti
-
 import { initializeApp } from 'firebase/app'
 import { getFirestore, enableIndexedDbPersistence } from 'firebase/firestore'
-import { getAuth } from 'firebase/auth'
+import { getAuth, GoogleAuthProvider } from 'firebase/auth'
 import { getMessaging, isSupported } from 'firebase/messaging'
 
 const firebaseConfig = {
@@ -16,30 +12,28 @@ const firebaseConfig = {
   appId:             import.meta.env.VITE_FIREBASE_APP_ID,
 }
 
-// Init app
 const app = initializeApp(firebaseConfig)
 
-// Firestore — dengan offline persistence (penting untuk mobile!)
-export const db = getFirestore(app)
+export const db   = getFirestore(app)
+export const auth = getAuth(app)
+export const googleProvider = new GoogleAuthProvider()
+
+// Offline persistence
 enableIndexedDbPersistence(db).catch((err) => {
   if (err.code === 'failed-precondition') {
-    // Multiple tabs terbuka — persistence hanya aktif di satu tab
-    console.warn('[Firestore] Persistence tidak aktif: multiple tabs')
+    console.warn('[Firestore] Multiple tabs open')
   } else if (err.code === 'unimplemented') {
-    // Browser tidak support
-    console.warn('[Firestore] Persistence tidak didukung browser ini')
+    console.warn('[Firestore] Persistence not supported')
   }
 })
 
-// Auth
-export const auth = getAuth(app)
-
-// FCM (Firebase Cloud Messaging) — hanya jika browser support
+// FCM
 export let messaging = null
 isSupported().then((supported) => {
   if (supported) {
+    const { getMessaging } = require('firebase/messaging')
     messaging = getMessaging(app)
   }
-})
+}).catch(() => {})
 
 export default app
